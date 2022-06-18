@@ -13,8 +13,8 @@ def coupon_allocation(p: CouponProblem, debug=False):
     while not stoped:
         p.reset_old_allocation()
         print("remaining: ", p.remaining_coupons_array())
-        print_nash(nash_set, p, "R1 nash: ")
-        print("befoar r1: ", p.allocation)
+        print("before r1: ", p.allocation)
+        print("val: ", p.valuation_matrix)
         # Rule #1
         nw1 = p.nash_welfare()
         r1(p)
@@ -32,10 +32,10 @@ def coupon_allocation(p: CouponProblem, debug=False):
             # allocation successfully
             return True
         if debug:
-            draw_graph(p)
             print_nash(nash_set, p, "R2 nash: ")
             print("pool starting R2: ", p.pool_size())
             print("remaining: ", p.remaining_coupons_array())
+            draw_graph(p, title="after R1 " + str(p.nash_welfare()) + " " + str(p.pool_size()))
         # print("remaining: ", p.remaining_coupons_array())
         old_allocation = np.copy(p.allocation)
         edited_sources = set()
@@ -43,57 +43,74 @@ def coupon_allocation(p: CouponProblem, debug=False):
         for s in sources:
             stoped = True
             if debug:
-                draw_graph(p)
-                print(p.allocation)
+                draw_graph(p,
+                           title="add item 2 source " + str(s) + " " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+                # print(p.allocation)
             is_envy, champion_node = make_source_envied(p, s, remaining_array)
             if debug:
-                print(p.allocation)
-                draw_graph(p, create_graph=False)
+                # print(p.allocation)
+                draw_graph(p, title="item added" + str(p.nash_welfare()) + " " + str(p.pool_size()))
             stoped = is_envy
             self_champ = champion_node == s
             if is_envy and not self_champ:
                 edited_sources.add(s)
                 if debug:
-                    nw = p.nash_welfare()
-                    draw_graph(p, create_graph=False)
-                    print(p.allocation)
+                    draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
                 success = find_eliminate_cycle(p, edited_sources, old_allocation)
                 if debug:
-                    print(p.allocation)
-                    draw_graph(p)
+                    draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                        p.pool_size()))
                 number_of_added = 1
                 # while not success and not p.EFX_evaluate():
                 while not success:
-                    if debug:
-                        draw_graph(p)
-                        print(s, " ", champion_node)
                     number_of_added += 1
                     s = p.node2source(champion_node)
+                    if debug:
+                        print(s, " ", champion_node)
+                        draw_graph(p,
+                                   title="add item 2 source " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                                       p.pool_size()))
                     # if r1(p):
                     #     print("bug")
                     is_envy, champion_node = make_source_envied(p, s, remaining_array)
                     if champion_node == s:
                         self_champ = True
+                        cycle_nodes = [s]
+                        for sour in p.old_allocation:
+                            if sour not in cycle_nodes:
+                                p.allocation[sour] = p.old_allocation[sour]
                         break
                     if debug:
-                        draw_graph(p)
+                        draw_graph(p,
+                                   title="item added " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                                       p.pool_size()))
                     if not is_envy:
                         print("bbuugg", p.pool_size(), " ", number_of_added)
                         print("cannot make source not source: ", sources)
                         # is_envy, champion_node = make_source_envied(p, s)
                         return False
+                    if debug:
+                        draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
                     success = find_eliminate_cycle(p, edited_sources, old_allocation)
-                stoped = False
+                    if debug:
+                        draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                            p.pool_size()))
+                    stoped = False
                 if debug:
                     nw2 = p.nash_welfare()
                     p.reset_old_allocation()
                     p.create_envy_graph()
-                    if nw2 < nw1:
+                    if nw2 <= nw1:
                         print("dec")
+                        return False
                     if not p.EFX_evaluate():
-                        print("fosh")
+                        print("EFX")
+                        return False
                     print(p.allocation)
-                    draw_graph(p)
+                    draw_graph(p, title="end of R2" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                        p.pool_size()))
+                # if np.equal(p.allocation.all(), old_allocation.all()):
+                #     continue
                 break
             if self_champ:
                 stoped = False
@@ -107,11 +124,6 @@ def coupon_allocation(p: CouponProblem, debug=False):
 def print_nash(nash_set, p, message):
     nw = p.nash_welfare()
     print(message, nw)
-    if nw <= max(nash_set):
-        print("repeat")
-        print("val")
-        print(p.valuation_matrix)
-    nash_set.add(nw)
 
 
 def r1(p):

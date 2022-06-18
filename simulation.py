@@ -10,19 +10,23 @@ def value2index(vec, value):
             return i
 
 
-def draw_graph(p, label="", create_graph=True):
+def draw_graph(p, title="", erase=True, stop=True):
+    # if erase:
+    #     plt.clf()
     # if create_graph:
     # p.create_envy_graph()
     g = p.nx_graph
     pos = nx.spring_layout(g)
     ax = plt.gca()
-    ax.set_title(label)
+    ax.set_title(title)
     for envy_val, color in zip((1, 2), ("blue", "red")):
         edges = [(u, v) for u, v, d in g.edges.data(data='weight') if d == envy_val]
         nx.draw_networkx_edges(g, pos=pos, edgelist=edges, edge_color=color, ax=ax)
     nx.draw_networkx_labels(g, pos=pos, ax=ax)
     nx.draw_networkx_nodes(g, pos=pos, ax=ax)
     plt.show()
+    if stop:
+        input()
 
 
 class ChoreProblem:
@@ -234,13 +238,16 @@ class CouponProblem(ChoreProblem):
                 return i
 
     def champion_set(self, agent, bundle):
-        min_index = -1
         bundle = np.copy(bundle)
         while sum(self.valuation(agent)) < sum(self.valuation(agent, bundle=bundle)):
             v = self.valuation(agent, bundle=bundle)
-            min_index = (np.where(v == np.min(v[np.nonzero(v)]))[0])
-            bundle[min_index[0]] = 0
-        bundle[min_index[0]] = 1
+            v_nz = v[np.nonzero(v)]
+            m = np.min(v_nz)
+            min_index = (np.where(v == m))[0][0]
+            bundle[min_index] = 0
+            if sum(self.valuation(agent)) > sum(self.valuation(agent, bundle=bundle)):
+                bundle[min_index] = 1
+                break
         if sum(self.valuation(agent)) < self.EFX_valuation(agent, bundle=bundle):
             print("EFX bug")
         return int(sum(bundle)), bundle
