@@ -3,6 +3,20 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
+draw_of = False
+
+
+def to_end(arr: list, item):
+    arr.remove(item)
+    arr.append(item)
+    return arr
+
+
+def to_front(arr: list, item):
+    arr.remove(item)
+    arr = [item] + arr
+    return arr
+
 
 def value2index(vec, value):
     for i in range(len(vec)):
@@ -11,22 +25,27 @@ def value2index(vec, value):
 
 
 def draw_graph(p, title="", erase=True, stop=True):
-    # if erase:
-    #     plt.clf()
-    # if create_graph:
-    # p.create_envy_graph()
-    g = p.nx_graph
-    pos = nx.spring_layout(g)
-    ax = plt.gca()
-    ax.set_title(title)
-    for envy_val, color in zip((1, 2), ("blue", "red")):
-        edges = [(u, v) for u, v, d in g.edges.data(data='weight') if d == envy_val]
-        nx.draw_networkx_edges(g, pos=pos, edgelist=edges, edge_color=color, ax=ax)
-    nx.draw_networkx_labels(g, pos=pos, ax=ax)
-    nx.draw_networkx_nodes(g, pos=pos, ax=ax)
-    plt.show()
-    if stop:
-        input()
+    p.create_envy_graph()
+    if not draw_of:
+        # if erase:
+        #     plt.clf()
+        # if create_graph:
+        if p.envy_graph is None:
+            p.create_envy_graph()
+        g = p.nx_graph
+        if p.nx_graph_pos is None:
+            p.nx_graph_pos = nx.spring_layout(g)
+        pos = p.nx_graph_pos
+        ax = plt.gca()
+        ax.set_title(title)
+        for envy_val, color in zip((1, 2), ("blue", "red")):
+            edges = [(u, v) for u, v, d in g.edges.data(data='weight') if d == envy_val]
+            nx.draw_networkx_edges(g, pos=pos, edgelist=edges, edge_color=color, ax=ax)
+        nx.draw_networkx_labels(g, pos=pos, ax=ax)
+        nx.draw_networkx_nodes(g, pos=pos, ax=ax)
+        plt.show(title="end")
+        # if stop:
+        #     input()
 
 
 class ChoreProblem:
@@ -36,22 +55,35 @@ class ChoreProblem:
     allocation = None
     envy_graph = None
     nx_graph = None
-    old_allocation = dict()
+    nx_graph_pos = None
+    self_allocation_delusion = dict()
+    other_allocation_delusion = dict()
+    order = None
 
-    def __init__(self, agents, items):
+    def __init__(self, agents, items, valuation=None):
         self.agents = agents
         self.items = items
-        self.valuation_matrix = np.zeros((agents, items))
         self.allocation = np.zeros((agents, items))
-        for i in range(agents):
-            for j in range(items):
-                self.valuation_matrix[i][j] = round(random.random(), 2)
-            self.valuation_matrix[i] = np.divide(self.valuation_matrix[i], sum(self.valuation_matrix[i]))
+        self.order = [i for i in range(items)]
+        if valuation is None:
+            self.valuation_matrix = np.zeros((agents, items))
+            for i in range(agents):
+                for j in range(items):
+                    self.valuation_matrix[i][j] = round(random.random(), 2)
+                self.valuation_matrix[i] = np.divide(self.valuation_matrix[i], sum(self.valuation_matrix[i]))
+        else:
+            self.valuation_matrix = valuation
 
-    def get_bundle(self, s):
-        if s in self.old_allocation:
-            return self.old_allocation[s]
-        return self.allocation[s]
+    def late_order(self, item):
+        self.order.remove(item)
+        self.order.append(item)
+
+    def get_bundle(self, agent, for_agent=None):
+        if for_agent is None or for_agent not in self.other_allocation_delusion:
+            if agent in self.self_allocation_delusion:
+                return self.self_allocation_delusion[agent]
+            return self.allocation[agent]
+        return self.other_allocation_delusion[for_agent][agent]
 
     def nash_allocation(self):
         allocation = np.zeros((self.agents, self.items))
@@ -61,9 +93,9 @@ class ChoreProblem:
         self.allocation = allocation
         return allocation
 
-    def valuation(self, agent, bundle=None):
+    def valuation(self, agent, bundle=None, for_node=None):
         if bundle is None:
-            bundle = self.get_bundle(agent)
+            bundle = self.get_bundle(agent, for_agent=for_node)
         v = np.zeros(self.items)
         for i in range(self.items):
             v[i] = bundle[i] * self.valuation_matrix[agent, i]
@@ -154,6 +186,7 @@ class ChoreProblem:
 
 class CouponProblem(ChoreProblem):
     def examine(self):
+        self.reset_old_allocation()
         return (self.pool_size() < self.agents) and self.EFX_evaluate()
 
     def nash_allocation(self):
@@ -173,12 +206,16 @@ class CouponProblem(ChoreProblem):
     def pool_size(self):
         return self.items * (self.agents - 1) - self.allocation.sum()
 
-    def add_old_allocation(self, agent, bundle):
-        if agent not in self.old_allocation:
-            self.old_allocation[agent] = np.copy(bundle)
+    def add_self_old_allocation(self, agent, bundle):
+        if agent not in self.self_allocation_delusion:
+            self.self_allocation_delusion[agent] = np.copy(bundle)
+
+    def add_other_old_allocation(self, agent, allocation):
+        self.other_allocation_delusion[agent] = allocation
 
     def reset_old_allocation(self):
-        self.old_allocation = dict()
+        self.self_allocation_delusion = dict()
+        self.other_allocation_delusion = dict()
 
     def create_envy_graph(self):
         self.envy_graph = np.zeros((self.agents, self.agents))
@@ -238,6 +275,7 @@ class CouponProblem(ChoreProblem):
                 return i
 
     def champion_set(self, agent, bundle):
+        main_bundle = np.copy(bundle)
         bundle = np.copy(bundle)
         while sum(self.valuation(agent)) < sum(self.valuation(agent, bundle=bundle)):
             v = self.valuation(agent, bundle=bundle)
@@ -245,12 +283,13 @@ class CouponProblem(ChoreProblem):
             m = np.min(v_nz)
             min_index = (np.where(v == m))[0][0]
             bundle[min_index] = 0
-            if sum(self.valuation(agent)) > sum(self.valuation(agent, bundle=bundle)):
+            if sum(self.valuation(agent)) >= sum(self.valuation(agent, bundle=bundle)):
                 bundle[min_index] = 1
                 break
-        if sum(self.valuation(agent)) < self.EFX_valuation(agent, bundle=bundle):
-            print("EFX bug")
-        return int(sum(bundle)), bundle
+        # if sum(self.valuation(agent)) < self.EFX_valuation(agent, bundle=bundle):
+        #     print("EFX bug")
+        #     self.champion_set(agent, main_bundle)
+        return int(sum(bundle)), bundle, agent
 
     def nash_welfare(self):
         nw = 0
@@ -259,11 +298,10 @@ class CouponProblem(ChoreProblem):
         return nw
 
     def champion_of_bundle(self, envy_nodes, s, bundle):
-        smallest_sets = [self.champion_set(envy_nodes[k], bundle) for k in
-                         range(len(envy_nodes))]
+        smallest_sets = [self.champion_set(k, bundle) for k in envy_nodes]
         ss = [t[0] for t in smallest_sets]
         champion_index = np.argmin(np.array(ss))
-        champion_node = envy_nodes[champion_index]
+        champion_node = smallest_sets[champion_index][2]
         champion_set = smallest_sets[champion_index][1]
         return champion_node, champion_set
 
