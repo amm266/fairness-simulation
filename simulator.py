@@ -1,10 +1,10 @@
 from simulation import *
-from algorithm3 import *
+from algorithm4 import *
 
 simulation.draw_of = True
 reversed_p = 0
 for n in range(10000):
-    p = CouponProblem(10, 15)
+    p = CouponProblem(4, 20)
     r, p = coupon_allocation(p, debug=False)
     print("n is:", n)
     print("pool size: ", p.pool_size())
