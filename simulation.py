@@ -72,7 +72,7 @@ class ChoreProblem:
                     self.valuation_matrix[i][j] = round(random.random(), 2)
                 self.valuation_matrix[i] = np.divide(self.valuation_matrix[i], sum(self.valuation_matrix[i]))
         else:
-            self.valuation_matrix = valuation
+            self.valuation_matrix = np.array(valuation)
 
     def late_order(self, item):
         self.order.remove(item)
@@ -102,12 +102,15 @@ class ChoreProblem:
         return v
 
     def EFX_valuation(self, agent, bundle=None):
+        if bundle is None:
+            bundle = self.get_bundle(agent)
+        bundle_ones = np.where(bundle == 1)
         v = self.valuation(agent, bundle)
-        if len(v[np.nonzero(v)]) == 0:
+        v_ones = v[bundle_ones]
+        try:
+            m = np.min(v_ones)
+        except:
             m = 0
-        else:
-            m = np.min(v[np.nonzero(v)])
-
         return sum(v) - m
 
     def EF_evaluate(self, a=1, is_chore=True):
@@ -178,7 +181,7 @@ class ChoreProblem:
         for i in range(self.agents):
             self_v = self.valuation(i).sum()
             efx_other = self.EFX_valuation(i, bundle=bundle)
-            if efx_other > self_v:
+            if round(efx_other, 3) > self_v:
                 r.append(i)
         r = np.array(r)
         return r
@@ -204,7 +207,8 @@ class CouponProblem(ChoreProblem):
         return len(np.where(self.envy_graph == 2)[0]) == 0
 
     def pool_size(self):
-        return self.items * (self.agents - 1) - self.allocation.sum()
+        return sum([self.remaining_coupon(i) for i in range(self.items)]) + sum(
+            [self.agents - 1 for j in range(self.items) if self.remaining_coupon(j) < 0])
 
     def add_self_old_allocation(self, agent, bundle):
         if agent not in self.self_allocation_delusion:
@@ -217,7 +221,7 @@ class CouponProblem(ChoreProblem):
         self.self_allocation_delusion = dict()
         self.other_allocation_delusion = dict()
 
-    def create_envy_graph(self):
+    def create_envy_graph(self, zero_envy=False):
         self.envy_graph = np.zeros((self.agents, self.agents))
         for i in range(self.agents):
             bundle = self.get_bundle(i)
@@ -226,10 +230,13 @@ class CouponProblem(ChoreProblem):
                     continue
                 self_v = sum(self.valuation(i, bundle=bundle))
                 other_v = sum(self.valuation(i, bundle=self.allocation[j]))
-                if self_v < other_v:
+                envy = self_v < other_v
+                if zero_envy:
+                    envy = self_v <= other_v
+                if envy:
                     self.envy_graph[i][j] = 1
                     efx_other_v = self.EFX_valuation(i, bundle=self.allocation[j])
-                    if self_v < efx_other_v:
+                    if self_v < round(efx_other_v, 3):
                         self.envy_graph[i][j] = 2
         g = nx.from_numpy_matrix(self.envy_graph, create_using=nx.DiGraph, parallel_edges=True)
         self.nx_graph = g
@@ -278,29 +285,31 @@ class CouponProblem(ChoreProblem):
         main_bundle = np.copy(bundle)
         bundle = np.copy(bundle)
         while sum(self.valuation(agent)) < sum(self.valuation(agent, bundle=bundle)):
+            bundle_ones = np.where(bundle == 1)
             v = self.valuation(agent, bundle=bundle)
-            v_nz = v[np.nonzero(v)]
-            m = np.min(v_nz)
-            min_index = (np.where(v == m))[0][0]
-            bundle[min_index] = 0
+            v_ones = v[bundle_ones]
+            m = np.argmin(v_ones)
+            bo = list(bundle_ones)[0]
+            del_index = bo[m]
+            bundle[del_index] = 0
             if sum(self.valuation(agent)) >= sum(self.valuation(agent, bundle=bundle)):
-                bundle[min_index] = 1
+                bundle[del_index] = 1
                 break
         # if sum(self.valuation(agent)) < self.EFX_valuation(agent, bundle=bundle):
         #     print("EFX bug")
         #     self.champion_set(agent, main_bundle)
         return int(sum(bundle)), bundle, agent
 
-    def nash_welfare(self):
+    def social_welfare(self):
         nw = 0
         for i in range(self.agents):
-            nw += self.valuation(i).sum()
+            nw += self.valuation(i, bundle=self.allocation[i, :]).sum()
         return nw
 
     def champion_of_bundle(self, envy_nodes, s, bundle):
         smallest_sets = [self.champion_set(k, bundle) for k in envy_nodes]
         ss = [t[0] for t in smallest_sets]
-        champion_index = np.argmin(np.array(ss))
+        champion_index = np.argmin(ss)
         champion_node = smallest_sets[champion_index][2]
         champion_set = smallest_sets[champion_index][1]
         return champion_node, champion_set

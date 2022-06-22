@@ -17,9 +17,9 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print("remaining: ", p.remaining_coupons_array())
             print("before r1: ", p.allocation)
             print("val: ", p.valuation_matrix)
-            draw_graph(p, title="before R1 " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
         # Rule #1
-        nw1 = p.nash_welfare()
+        nw1 = p.social_welfare()
         r1(p)
         try:
             while True:
@@ -35,7 +35,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print_nash(nash_set, p, "R2 nash: ")
             print("pool starting R2: ", p.pool_size())
             print("remaining: ", p.remaining_coupons_array())
-            draw_graph(p, title="after R1 " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
         if p.pool_size() < p.agents:
             print("pool size: ", p.pool_size(), " < agents: :", p.agents)
             # allocation successfully
@@ -48,7 +48,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
             stoped = True
             if debug:
                 draw_graph(p,
-                           title="add item to source " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                           title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
                                p.pool_size()))
                 # print(p.allocation)
             is_envy, champion_node = make_source_envied(p, s, remaining_array)
@@ -56,17 +56,17 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 # print(p.allocation)
                 draw_graph(p,
                            title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
-                               p.nash_welfare()) + " " + str(
+                               p.social_welfare()) + " " + str(
                                p.pool_size()))
             stoped = not is_envy
             self_champ = champion_node == s
             if is_envy and not self_champ:
                 edited_sources.add(s)
                 if debug:
-                    draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
                 success = find_eliminate_cycle(p)
                 if debug:
-                    draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                    draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
                         p.pool_size()))
                 number_of_added = 1
                 # while not success and not p.EFX_evaluate():
@@ -76,7 +76,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
                     if debug:
                         print(s, " ", champion_node)
                         draw_graph(p,
-                                   title="add item to source " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                                   title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
                                        p.pool_size()))
                     # if r1(p):
                     #     print("bug")
@@ -84,7 +84,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
                     if debug:
                         draw_graph(p,
                                    title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
-                                       p.nash_welfare()) + " " + str(
+                                       p.social_welfare()) + " " + str(
                                        p.pool_size()))
                     if champion_node == s:
                         self_champ = True
@@ -101,10 +101,10 @@ def coupon_allocation(p: CouponProblem, debug=False):
                         # is_envy, champion_node = make_source_envied(p, s)
                         return False
                     if debug:
-                        draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+                        draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
                     success = find_eliminate_cycle(p)
                     if debug:
-                        draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                        draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
                             p.pool_size()))
                 # if np.equal(p.allocation.all(), old_allocation.all()):
                 #     continue
@@ -118,7 +118,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 for a in range(p.agents):
                     p.allocation[a][i] = 0
         if debug:
-            nw2 = p.nash_welfare()
+            nw2 = p.social_welfare()
             p.reset_old_allocation()
             p.create_envy_graph()
             if nw2 <= nw1:
@@ -128,7 +128,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 print("EFX")
                 # return False
             print(p.allocation)
-            draw_graph(p, title="end of R2" + str(p.nash_welfare()) + " " + str(
+            draw_graph(p, title="end of R2" + str(p.social_welfare()) + " " + str(
                 p.pool_size()))
     print("stopped: ", stoped)
     p.create_envy_graph()
@@ -137,7 +137,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
 
 
 def print_nash(nash_set, p, message):
-    nw = p.nash_welfare()
+    nw = p.social_welfare()
     print(message, nw)
 
 
@@ -215,7 +215,8 @@ def find_eliminate_cycle(p):
     r = False
     try:
         while True:
-            # p.create_envy_graph()
+            p.create_envy_graph(zero_envy=True)
+            p.create_envy_graph()
             cycle = nx.find_cycle(p.nx_graph)
             # print("remaining: ", p.remaining_coupons_array())
             # print("cycle: ", cycle)

@@ -7,6 +7,32 @@ from simulation import *
 main_sources = set()
 
 
+def delgo_coupon_allocation(p: CouponProblem, debug=False):
+    while p.pool_size() >= p.agents:
+        if p.remaining_coupons_array().any() < 0:
+            print("bad remaining bug")
+            return False
+        sw1 = p.social_welfare()
+        remaining_array1 = p.remaining_coupons_array()
+        r = coupon_allocation(p, debug)
+        if not r:
+            return r
+        remaining_array = p.remaining_coupons_array()
+        for i in range(len(remaining_array)):
+            if remaining_array[i] < 0:
+                print("del item: ", i)
+                for a in range(p.agents):
+                    p.allocation[a][i] = 0
+        sw2 = p.social_welfare()
+        print("sw1: ", sw1, " sw2: ", sw2)
+        if sw2 <= sw1:
+            print("social welfare bug")
+            print(p.valuation_matrix)
+            return False
+
+    return True
+
+
 def coupon_allocation(p: CouponProblem, debug=False):
     global main_sources
     nash_set = {-1}
@@ -17,9 +43,9 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print("remaining: ", p.remaining_coupons_array())
             print("before r1: ", p.allocation)
             print("val: ", p.valuation_matrix)
-            draw_graph(p, title="before R1 " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
         # Rule #1
-        nw1 = p.nash_welfare()
+        nw1 = p.social_welfare()
         r1(p)
         # Rule 2
         remaining_array = p.remaining_coupons_array()
@@ -27,20 +53,15 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print_nash(nash_set, p, "R2 nash: ")
             print("pool starting R2: ", p.pool_size())
             print("remaining: ", p.remaining_coupons_array())
-            draw_graph(p, title="after R1 " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
         if p.pool_size() < p.agents:
             print("pool size: ", p.pool_size(), " < agents: :", p.agents)
             # allocation successfully
             return True, p
         # print("remaining: ", p.remaining_coupons_array())
         r2(p, debug, remaining_array)
-        remaining_array = p.remaining_coupons_array()
-        for i in range(len(remaining_array)):
-            if remaining_array[i] < 0:
-                for a in range(p.agents):
-                    p.allocation[a][i] = 0
         if debug:
-            nw2 = p.nash_welfare()
+            nw2 = p.social_welfare()
             p.reset_old_allocation()
             p.create_envy_graph()
             if nw2 <= nw1:
@@ -50,7 +71,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 print("EFX")
                 # return False
             print(p.allocation)
-            draw_graph(p, title="end of R2" + str(p.nash_welfare()) + " " + str(
+            draw_graph(p, title="end of R2" + str(p.social_welfare()) + " " + str(
                 p.pool_size()))
     print("stopped: ", stoped)
     p.create_envy_graph()
@@ -59,7 +80,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
 
 
 def print_nash(nash_set, p, message):
-    nw = p.nash_welfare()
+    nw = p.social_welfare()
     print(message, nw)
 
 
@@ -83,7 +104,7 @@ def r2(p, debug, remaining_array):
         stoped = True
         if debug:
             draw_graph(p,
-                       title="add item to source " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                       title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
                            p.pool_size()))
             # print(p.allocation)
         is_envy, champion_node = make_source_envied(p, s, remaining_array)
@@ -91,17 +112,17 @@ def r2(p, debug, remaining_array):
             # print(p.allocation)
             draw_graph(p,
                        title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
-                           p.nash_welfare()) + " " + str(
+                           p.social_welfare()) + " " + str(
                            p.pool_size()))
         stoped = not is_envy
         self_champ = champion_node == s
         if is_envy and not self_champ:
             edited_sources.add(s)
             if debug:
-                draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+                draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
             success = find_eliminate_cycle(p)
             if debug:
-                draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
                     p.pool_size()))
             number_of_added = 1
             # while not success and not p.EFX_evaluate():
@@ -111,7 +132,7 @@ def r2(p, debug, remaining_array):
                 if debug:
                     print(s, " ", champion_node)
                     draw_graph(p,
-                               title="add item to source " + str(s) + " " + str(p.nash_welfare()) + " " + str(
+                               title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
                                    p.pool_size()))
                 # if r1(p):
                 #     print("bug")
@@ -119,7 +140,7 @@ def r2(p, debug, remaining_array):
                 if debug:
                     draw_graph(p,
                                title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
-                                   p.nash_welfare()) + " " + str(
+                                   p.social_welfare()) + " " + str(
                                    p.pool_size()))
                 if champion_node == s:
                     self_champ = True
@@ -136,10 +157,10 @@ def r2(p, debug, remaining_array):
                     # is_envy, champion_node = make_source_envied(p, s)
                     return False
                 if debug:
-                    draw_graph(p, title="finding cycle " + str(p.nash_welfare()) + " " + str(p.pool_size()))
+                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
                 success = find_eliminate_cycle(p)
                 if debug:
-                    draw_graph(p, title="cycle found:" + str(success) + " " + str(p.nash_welfare()) + " " + str(
+                    draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
                         p.pool_size()))
             # if np.equal(p.allocation.all(), old_allocation.all()):
             #     continue
@@ -166,11 +187,14 @@ def safely_add_item(p):
 
 def make_source_envied(p: coupon_allocation, s, remaining_array):
     global main_sources
-    if sum(remaining_array) == 0:
+    if remaining_array.any() < 0:
+        print("remaining bug")
+        return False
+    if p.pool_size() == 0:
         return False, None
     for coupon in p.order:
         # print("remaining: ", remaining_array)
-        if p.allocation[s][coupon] == 0 and coupon in np.nonzero(remaining_array)[0]:
+        if p.allocation[s][coupon] == 0 and remaining_array[coupon] > 0 and p.remaining_coupon(coupon) > 0:
             # print("allocating item ", coupon, " to agent: ", s)
             old_source = np.copy(p.allocation[s])
             p.add_self_old_allocation(s, old_source)
@@ -190,6 +214,7 @@ def make_source_envied(p: coupon_allocation, s, remaining_array):
                 p.create_envy_graph()
                 return True, champion_node
     print("del mode")
+    print(p.valuation_matrix)
     order = p.order.copy()
     for coupon in order:
         if p.allocation[s][coupon] == 0:
