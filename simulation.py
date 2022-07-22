@@ -1,3 +1,4 @@
+import os
 import random
 import numpy as np
 import networkx as nx
@@ -24,7 +25,11 @@ def value2index(vec, value):
             return i
 
 
-def draw_graph(p, title="", erase=True, stop=True):
+plots = 0
+
+
+def draw_graph(p, title="", erase=True, stop=True, pdf=None):
+    global plots
     p.create_envy_graph()
     if not draw_of:
         # if erase:
@@ -36,6 +41,7 @@ def draw_graph(p, title="", erase=True, stop=True):
         if p.nx_graph_pos is None:
             p.nx_graph_pos = nx.spring_layout(g)
         pos = p.nx_graph_pos
+        f = plt.figure()
         ax = plt.gca()
         ax.set_title(title)
         for envy_val, color in zip((1, 2), ("blue", "red")):
@@ -46,6 +52,16 @@ def draw_graph(p, title="", erase=True, stop=True):
         plt.show(title="end")
         # if stop:
         #     input()
+        if pdf is not None:
+            # f = plt.figure()
+            # f.add_subplot(ax)
+            pdf.write(10, "\nallocation matrix:\n" + p.allocation.__str__() + "\n")
+            pdf.write(10, "\nremaining coupons:\n" + p.remaining_coupons_array().__str__() + "\n")
+            path = str("plt" + str(plots) + ".png")
+            f.savefig(path.split(".")[0])
+            pdf.image(path, w=150)
+            os.remove("plt" + str(plots) + ".png")
+            plots += 1
 
 
 class ChoreProblem:

@@ -2,30 +2,30 @@ import itertools
 
 import numpy as np
 
-from algorithm3 import *
+from algorithm4 import *
 
 simulation.draw_of = True
 reversed_p = 0
 
 
-# for n in range(10000):
-#     print(n, " started")
-#     p = CouponProblem(4, 20)
-#     r = delgo_coupon_allocation(p, debug=False)
-#     print("pool size: ", p.pool_size())
-#     print(p.allocation)
-#     print(n, " ended")
-#     if not p.examine() or not r:
-#         reversed_p += 1
-#         print("fauuuuuult")
-#         print(p.allocation)
-#         print("pool size: ", p.pool_size())
-#         g = p.create_envy_graph()
-#         print(p.envy_graph)
-#         draw_graph(p)
-#         print(p.EFX_evaluate())
-#         print(p.valuation_matrix)
-#         break
+for n in range(10000):
+    print(n, " started")
+    p = CouponProblem(4, 10)
+    r = delgo_coupon_allocation(p, debug=False)
+    print("pool size: ", p.pool_size())
+    print(p.allocation)
+    print(n, " ended")
+    if not p.examine() or not r:
+        reversed_p += 1
+        print("fauuuuuult")
+        print(p.allocation)
+        print("pool size: ", p.pool_size())
+        g = p.create_envy_graph()
+        print(p.envy_graph)
+        draw_graph(p)
+        print(p.EFX_evaluate())
+        print(p.valuation_matrix)
+        break
 # v2 = np.zeros_like(p.valuation_matrix)
 # for i in range(p.items):
 #     v2[:, i] = p.valuation_matrix[:, p.items - 1 - i]
@@ -99,4 +99,4 @@ def all_possible_valuations_problem(agents, items, parts):
             break
 
 
-all_possible_valuations_problem(3, 5, 10)
+# all_possible_valuations_problem(3, 5, 10)

@@ -7,14 +7,14 @@ from simulation import *
 main_sources = set()
 
 
-def delgo_coupon_allocation(p: CouponProblem, debug=False):
+def delgo_coupon_allocation(p: CouponProblem, debug=False, pdf=None):
     while p.pool_size() >= p.agents:
         if p.remaining_coupons_array().any() < 0:
             print("bad remaining bug")
             return False
         sw1 = p.social_welfare()
         remaining_array1 = p.remaining_coupons_array()
-        r = coupon_allocation(p, debug)
+        r = coupon_allocation(p, debug, pdf)
         if not r:
             return r
         remaining_array = p.remaining_coupons_array()
@@ -33,7 +33,7 @@ def delgo_coupon_allocation(p: CouponProblem, debug=False):
     return True
 
 
-def coupon_allocation(p: CouponProblem, debug=False):
+def coupon_allocation(p: CouponProblem, debug=False, pdf=None):
     global main_sources
     nash_set = {-1}
     stoped = False
@@ -43,7 +43,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print("remaining: ", p.remaining_coupons_array())
             print("before r1: ", p.allocation)
             print("val: ", p.valuation_matrix)
-            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
         # Rule #1
         nw1 = p.social_welfare()
         r1(p)
@@ -53,13 +53,13 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print_nash(nash_set, p, "R2 nash: ")
             print("pool starting R2: ", p.pool_size())
             print("remaining: ", p.remaining_coupons_array())
-            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
         if p.pool_size() < p.agents:
             print("pool size: ", p.pool_size(), " < agents: :", p.agents)
             # allocation successfully
             return True, p
         # print("remaining: ", p.remaining_coupons_array())
-        r2(p, debug, remaining_array)
+        r2(p, debug, remaining_array, pdf)
         if debug:
             nw2 = p.social_welfare()
             p.reset_old_allocation()
@@ -72,10 +72,10 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 # return False
             print(p.allocation)
             draw_graph(p, title="end of R2" + str(p.social_welfare()) + " " + str(
-                p.pool_size()))
+                p.pool_size()), pdf=pdf)
     print("stopped: ", stoped)
     p.create_envy_graph()
-    draw_graph(p)
+    draw_graph(p, pdf=pdf)
     # print("cannot make source not source: ", sources)
 
 
@@ -96,7 +96,7 @@ def r1(p):
             return
 
 
-def r2(p, debug, remaining_array):
+def r2(p, debug, remaining_array, pdf=None):
     old_allocation = np.copy(p.allocation)
     edited_sources = set()
     sources = p.source_nodes()
@@ -105,7 +105,7 @@ def r2(p, debug, remaining_array):
         if debug:
             draw_graph(p,
                        title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
-                           p.pool_size()))
+                           p.pool_size()), pdf=pdf)
             # print(p.allocation)
         is_envy, champion_node = make_source_envied(p, s, remaining_array)
         if debug:
@@ -113,17 +113,17 @@ def r2(p, debug, remaining_array):
             draw_graph(p,
                        title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
                            p.social_welfare()) + " " + str(
-                           p.pool_size()))
+                           p.pool_size()), pdf=pdf)
         stoped = not is_envy
         self_champ = champion_node == s
         if is_envy and not self_champ:
             edited_sources.add(s)
             if debug:
-                draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
+                draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
             success = find_eliminate_cycle(p)
             if debug:
                 draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
-                    p.pool_size()))
+                    p.pool_size()), pdf=pdf)
             number_of_added = 1
             # while not success and not p.EFX_evaluate():
             while not success:
@@ -133,7 +133,7 @@ def r2(p, debug, remaining_array):
                     print(s, " ", champion_node)
                     draw_graph(p,
                                title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
-                                   p.pool_size()))
+                                   p.pool_size()), pdf=pdf)
                 # if r1(p):
                 #     print("bug")
                 is_envy, champion_node = make_source_envied(p, s, remaining_array)
@@ -141,7 +141,7 @@ def r2(p, debug, remaining_array):
                     draw_graph(p,
                                title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
                                    p.social_welfare()) + " " + str(
-                                   p.pool_size()))
+                                   p.pool_size()), pdf=pdf)
                 if champion_node == s:
                     self_champ = True
                     stoped = False
@@ -157,11 +157,11 @@ def r2(p, debug, remaining_array):
                     # is_envy, champion_node = make_source_envied(p, s)
                     return False
                 if debug:
-                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
+                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
                 success = find_eliminate_cycle(p)
                 if debug:
                     draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
-                        p.pool_size()))
+                        p.pool_size()), pdf=pdf)
             # if np.equal(p.allocation.all(), old_allocation.all()):
             #     continue
             break
