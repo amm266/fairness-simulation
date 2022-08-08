@@ -57,6 +57,7 @@ def draw_graph(p, title="", erase=True, stop=True, pdf=None):
             # f.add_subplot(ax)
             pdf.write(10, "\nallocation matrix:\n" + p.allocation.__str__() + "\n")
             pdf.write(10, "\nremaining coupons:\n" + p.remaining_coupons_array().__str__() + "\n")
+            pdf.write(10, "\ncoupons order:\n" + p.order.__str__() + "\n")
             path = str("plt" + str(plots) + ".png")
             f.savefig(path.split(".")[0])
             pdf.image(path, w=150)
@@ -76,7 +77,7 @@ class ChoreProblem:
     other_allocation_delusion = dict()
     order = None
 
-    def __init__(self, agents, items, valuation=None):
+    def __init__(self, agents, items, valuation=None, max_valuation=100):
         self.agents = agents
         self.items = items
         self.allocation = np.zeros((agents, items))
@@ -85,8 +86,8 @@ class ChoreProblem:
             self.valuation_matrix = np.zeros((agents, items))
             for i in range(agents):
                 for j in range(items):
-                    self.valuation_matrix[i][j] = round(random.random(), 2)
-                self.valuation_matrix[i] = np.divide(self.valuation_matrix[i], sum(self.valuation_matrix[i]))
+                    self.valuation_matrix[i][j] = random.randint(0, max_valuation)
+                # self.valuation_matrix[i] = np.divide(self.valuation_matrix[i], sum(self.valuation_matrix[i]))
         else:
             self.valuation_matrix = np.array(valuation)
 
@@ -127,7 +128,8 @@ class ChoreProblem:
             m = np.min(v_ones)
         except:
             m = 0
-        return sum(v) - m
+        sv = sum(v)
+        return sv - m
 
     def EF_evaluate(self, a=1, is_chore=True):
         for i in range(self.agents):
@@ -252,7 +254,7 @@ class CouponProblem(ChoreProblem):
                 if envy:
                     self.envy_graph[i][j] = 1
                     efx_other_v = self.EFX_valuation(i, bundle=self.allocation[j])
-                    if self_v < round(efx_other_v, 3):
+                    if self_v < efx_other_v:
                         self.envy_graph[i][j] = 2
         g = nx.from_numpy_matrix(self.envy_graph, create_using=nx.DiGraph, parallel_edges=True)
         self.nx_graph = g
@@ -300,7 +302,9 @@ class CouponProblem(ChoreProblem):
     def champion_set(self, agent, bundle):
         main_bundle = np.copy(bundle)
         bundle = np.copy(bundle)
-        while sum(self.valuation(agent)) < sum(self.valuation(agent, bundle=bundle)):
+        sum_self = sum(self.valuation(agent))
+        efx_other = self.EFX_valuation(agent, bundle=bundle)
+        while sum_self < efx_other:
             bundle_ones = np.where(bundle == 1)
             v = self.valuation(agent, bundle=bundle)
             v_ones = v[bundle_ones]
@@ -311,9 +315,8 @@ class CouponProblem(ChoreProblem):
             if sum(self.valuation(agent)) >= sum(self.valuation(agent, bundle=bundle)):
                 bundle[del_index] = 1
                 break
-        # if sum(self.valuation(agent)) < self.EFX_valuation(agent, bundle=bundle):
-        #     print("EFX bug")
-        #     self.champion_set(agent, main_bundle)
+            sum_self = sum(self.valuation(agent))
+            efx_other = self.EFX_valuation(agent, bundle=bundle)
         return int(sum(bundle)), bundle, agent
 
     def social_welfare(self):

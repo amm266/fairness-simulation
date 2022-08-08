@@ -1,18 +1,23 @@
 import itertools
+import json
+# import Image
 
 import numpy as np
 
-from algorithm4 import *
+from algorithm3 import *
 
 simulation.draw_of = True
 reversed_p = 0
 
 
+
+
 for n in range(10000):
     print(n, " started")
-    p = CouponProblem(4, 10)
-    r = delgo_coupon_allocation(p, debug=False)
+    p = CouponProblem(3, 8)
+    r = coupon_allocation(p, debug=False, late_order=False)
     print("pool size: ", p.pool_size())
+
     print(p.allocation)
     print(n, " ended")
     if not p.examine() or not r:
@@ -24,8 +29,14 @@ for n in range(10000):
         print(p.envy_graph)
         draw_graph(p)
         print(p.EFX_evaluate())
-        print(p.valuation_matrix)
+        j = ""
+        print(json.dumps(p.valuation_matrix.tolist()))
+        r = coupon_allocation(p, debug=False, late_order=True)
+        if not p.examine() or not r:
+            print("real fault")
         break
+
+
 # v2 = np.zeros_like(p.valuation_matrix)
 # for i in range(p.items):
 #     v2[:, i] = p.valuation_matrix[:, p.items - 1 - i]
@@ -97,6 +108,5 @@ def all_possible_valuations_problem(agents, items, parts):
             print(p.EFX_evaluate())
             print(p.valuation_matrix)
             break
-
 
 # all_possible_valuations_problem(3, 5, 10)

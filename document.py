@@ -1,19 +1,27 @@
 import numpy as np
 from fpdf import FPDF
 
-from algorithm4 import delgo_coupon_allocation
+from algorithm3 import coupon_allocation
 from simulation import CouponProblem
+
 pdf = FPDF()
 pdf.add_page()
 pdf.set_font("Arial", size=15)
-# alloc1 = np.array([[0.13533835, 0.00451128, 0.0887218, 0.08421053, 0.1443609, 0.13834586, 0.11278195, 0.10075188, 0.09323308,
-#            0.09774436],
-#           [0.17391304, 0.08237986, 0.0617849, 0.09839817, 0.13501144, 0.0389016, 0.0389016, 0.10983982, 0.03661327,
-#            0.22425629]
-#     , [0.1, 0.04923077, 0.15230769, 0.05230769, 0.13538462, 0.07230769, 0.15384615, 0.11846154, 0.11230769, 0.05384615],
-#           [0.12562814, 0.06867672, 0.14070352, 0.15745394, 0.13232831, 0.06197655, 0.12227806, 0.02345059, 0.12730318,
-#            0.04020101] ])
-p = CouponProblem(4, 10)
-# p.valuation_matrix = alloc1
-r = delgo_coupon_allocation(p, debug=True, pdf=pdf)
-pdf.output("instance.pdf")
+val = [[0.12607449856733524, 0.06303724928366762, 0.1318051575931232, 0.24068767908309452, 0.03724928366762178,
+        0.10028653295128939, 0.13467048710601717, 0.16618911174785098],
+       [0.19047619047619047, 0.0047619047619047615, 0.08333333333333333, 0.13809523809523808, 0.08095238095238096,
+        0.11666666666666665, 0.15952380952380954, 0.22619047619047616],
+       [0.19680851063829785, 0.19148936170212763, 0.2473404255319149, 0.0, 0.2127659574468085, 0.0026595744680851063,
+        0.03723404255319149, 0.11170212765957446]]
+
+p = CouponProblem(3, 8, valuation=val)
+r = coupon_allocation(p, debug=True, pdf=pdf, late_order=False)
+print(r)
+pdf.output("instance-fail.pdf")
+pdf = FPDF()
+pdf.add_page()
+pdf.set_font("Arial", size=15)
+p = CouponProblem(3, 8, valuation=val)
+r = coupon_allocation(p, debug=True, pdf=pdf, late_order=True)
+pdf.output("instance-success.pdf")
+print(r)

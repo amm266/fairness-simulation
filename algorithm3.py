@@ -7,7 +7,7 @@ from simulation import *
 main_sources = set()
 
 
-def coupon_allocation(p: CouponProblem, debug=False):
+def coupon_allocation(p: CouponProblem, debug=False, late_order=True, pdf=None):
     global main_sources
     nash_set = {-1}
     stoped = False
@@ -17,7 +17,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print("remaining: ", p.remaining_coupons_array())
             print("before r1: ", p.allocation)
             print("val: ", p.valuation_matrix)
-            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="before R1 " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
         # Rule #1
         nw1 = p.social_welfare()
         r1(p)
@@ -35,7 +35,7 @@ def coupon_allocation(p: CouponProblem, debug=False):
             print_nash(nash_set, p, "R2 nash: ")
             print("pool starting R2: ", p.pool_size())
             print("remaining: ", p.remaining_coupons_array())
-            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()))
+            draw_graph(p, title="after R1 " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
         if p.pool_size() < p.agents:
             print("pool size: ", p.pool_size(), " < agents: :", p.agents)
             # allocation successfully
@@ -49,25 +49,25 @@ def coupon_allocation(p: CouponProblem, debug=False):
             if debug:
                 draw_graph(p,
                            title="add item to source " + str(s) + " " + str(p.social_welfare()) + " " + str(
-                               p.pool_size()))
+                               p.pool_size()), pdf=pdf)
                 # print(p.allocation)
-            is_envy, champion_node = make_source_envied(p, s, remaining_array)
+            is_envy, champion_node = make_source_envied(p, s, remaining_array, late_order)
             if debug:
                 # print(p.allocation)
                 draw_graph(p,
                            title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
                                p.social_welfare()) + " " + str(
-                               p.pool_size()))
+                               p.pool_size()), pdf=pdf)
             stoped = not is_envy
             self_champ = champion_node == s
             if is_envy and not self_champ:
                 edited_sources.add(s)
                 if debug:
-                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
+                    draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()), pdf=pdf)
                 success = find_eliminate_cycle(p)
                 if debug:
                     draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
-                        p.pool_size()))
+                        p.pool_size()), pdf=pdf)
                 number_of_added = 1
                 # while not success and not p.EFX_evaluate():
                 while not success:
@@ -80,12 +80,12 @@ def coupon_allocation(p: CouponProblem, debug=False):
                                        p.pool_size()))
                     # if r1(p):
                     #     print("bug")
-                    is_envy, champion_node = make_source_envied(p, s, remaining_array)
+                    is_envy, champion_node = make_source_envied(p, s, remaining_array, late_order)
                     if debug:
                         draw_graph(p,
                                    title="item added " + "champion: " + str(champion_node) + " " + str(s) + " " + str(
                                        p.social_welfare()) + " " + str(
-                                       p.pool_size()))
+                                       p.pool_size()), pdf=pdf)
                     if champion_node == s:
                         self_champ = True
                         stoped = False
@@ -101,11 +101,12 @@ def coupon_allocation(p: CouponProblem, debug=False):
                         # is_envy, champion_node = make_source_envied(p, s)
                         return False
                     if debug:
-                        draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()))
+                        draw_graph(p, title="finding cycle " + str(p.social_welfare()) + " " + str(p.pool_size()),
+                                   pdf=pdf)
                     success = find_eliminate_cycle(p)
                     if debug:
                         draw_graph(p, title="cycle found:" + str(success) + " " + str(p.social_welfare()) + " " + str(
-                            p.pool_size()))
+                            p.pool_size()), pdf=pdf)
                 # if np.equal(p.allocation.all(), old_allocation.all()):
                 #     continue
                 break
@@ -129,11 +130,12 @@ def coupon_allocation(p: CouponProblem, debug=False):
                 # return False
             print(p.allocation)
             draw_graph(p, title="end of R2" + str(p.social_welfare()) + " " + str(
-                p.pool_size()))
+                p.pool_size()), pdf=pdf)
     print("stopped: ", stoped)
     p.create_envy_graph()
-    draw_graph(p)
+    draw_graph(p, pdf=pdf)
     print("cannot make source not source: ", sources)
+    pdf.write(10, "\ncannot make source envied: " + str(sources))
 
 
 def print_nash(nash_set, p, message):
@@ -161,7 +163,7 @@ def safely_add_item(p):
     return False
 
 
-def make_source_envied(p: coupon_allocation, s, remaining_array):
+def make_source_envied(p: coupon_allocation, s, remaining_array, late_order):
     global main_sources
     if sum(remaining_array) == 0:
         return False, None
@@ -187,13 +189,15 @@ def make_source_envied(p: coupon_allocation, s, remaining_array):
                 p.create_envy_graph()
                 return True, champion_node
     print("del mode")
+    print(p.valuation_matrix.tolist())
     order = p.order.copy()
     for coupon in order:
         if p.allocation[s][coupon] == 0:
             old_source = np.copy(p.allocation[s])
             p.add_self_old_allocation(s, old_source)
             p.allocation[s][coupon] = 1
-            p.late_order(coupon)
+            if late_order:
+                p.late_order(coupon)
             remaining_array[coupon] -= 1
             str_envying_nodes = set(p.strong_envy_nodes(s))
             if len(str_envying_nodes) == 0:
